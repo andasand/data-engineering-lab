@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+
+# VS Code
+.vscode/
+
+# Generated pipeline outputs
+insights/
+
+# Runtime logs
+logs/*.csv
+logs/*.log
+
+# OS files
+.DS_Store
+Thumbs.db

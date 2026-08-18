@@ -1,0 +1,9 @@
+customer_id,name,region,signup_date
+1,Luke Skywalker,Tatooine,2025-01-01
+2,Leia Organa,Alderaan,2025-01-16
+3,Han Solo,Corellia,2025-01-31
+4,Darth Vader,Mustafar,2025-02-15
+5,Yoda,Dagobah,2025-03-02
+6,Obi-Wan Kenobi,Stewjon,2025-03-17
+7,Chewbacca,Kashyyyk,2025-04-01
+8,Padmé Amidala,Naboo,2025-04-16
