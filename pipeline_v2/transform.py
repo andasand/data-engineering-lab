@@ -1,5 +1,8 @@
 import os
 import pandas as pd
+import logging
+
+logger = logging.getLogger("pipeline.transform")
 
 
 def run(
@@ -24,7 +27,11 @@ def run(
     products = pd.read_csv(products_path)
     customers = pd.read_csv(customers_path)
 
-    print(f"Loaded cleaned orders from: {cleaned_path}")
+    logger.info(
+        "Loaded %s cleaned orders from %s",
+        len(orders),
+        cleaned_path
+    )
 
     # -----------------------------
     # Rename overlapping columns
@@ -54,6 +61,10 @@ def run(
         how="left"
     )
 
+    logger.info(
+        "Enriched orders with product data."
+    )
+
     # -----------------------------
     # Enrich orders with customers
     # -----------------------------
@@ -69,6 +80,10 @@ def run(
         how="left"
     )
 
+    logger.info(
+        "Enriched orders with customer data."
+    )
+
     # -----------------------------
     # Calculate line revenue
     # -----------------------------
@@ -76,6 +91,11 @@ def run(
     orders["line_total"] = (
         orders["quantity"]
         * orders["price"]
+    )
+
+    logger.info(
+        "Calculated line_total for %s orders.",
+        len(orders)
     )
 
     # -----------------------------
@@ -133,6 +153,12 @@ def run(
         .head(3)
     )
 
+    logger.info(
+        "Calculated top %s products and top %s customers.",
+        len(top_products),
+        len(top_customers)
+    )
+
     # -----------------------------
     # Save enriched dataset
     # -----------------------------
@@ -147,33 +173,20 @@ def run(
         index=False
     )
 
-    print(
-        f"Saved enriched orders to: "
-        f"{enriched_path}"
+    logger.info(
+        "Saved enriched orders to: %s",
+        enriched_path
     )
 
     # -----------------------------
-    # Display analytics
+    # Stage summary
     # -----------------------------
 
-    print("\nTop 3 Products by Revenue:")
-    print(
-        top_products[
-            [
-                "product_name",
-                "total_revenue"
-            ]
-        ]
-    )
-
-    print("\nTop 3 Customers by Spend:")
-    print(
-        top_customers[
-            [
-                "customer_name",
-                "total_spend"
-            ]
-        ]
+    logger.info(
+        "Transformation completed: %s enriched orders, %s product aggregates, %s customer aggregates",
+        len(orders),
+        len(top_products),
+        len(top_customers)
     )
 
     # -----------------------------

@@ -1,26 +1,54 @@
 import os
 import pandas as pd
 import shutil
+import logging
 from datetime import datetime
 
+logger = logging.getLogger("pipeline.ingest")
+
+
 def run(
-        file_name,
-        data_folder,
-        archive_folder,
-        insights_folder,
-        log_path
+    file_name,
+    data_folder,
+    archive_folder,
+    insights_folder,
+    log_path
 ):
+    # -----------------------------
     # Build paths
-    file_path = os.path.join(data_folder, file_name)
-    file_id = os.path.splitext(file_name)[0]
+    # -----------------------------
 
-    print(f"Found file: {file_name}")
-    print(f"File ID: {file_id}")
+    file_path = os.path.join(
+        data_folder,
+        file_name
+    )
 
+    file_id = os.path.splitext(
+        file_name
+    )[0]
+
+    logger.info(
+        "Found file: %s",
+        file_name
+    )
+
+    logger.info(
+        "File ID: %s",
+        file_id
+    )
+
+    # -----------------------------
     # Load file
-    orders = pd.read_csv(file_path)
+    # -----------------------------
 
+    orders = pd.read_csv(
+        file_path
+    )
+
+    # -----------------------------
     # Validate schema
+    # -----------------------------
+
     expected_cols = [
         "order_id",
         "customer_id",
@@ -29,55 +57,111 @@ def run(
         "order_date",
     ]
 
-    actual_cols = list(orders.columns)
+    actual_cols = list(
+        orders.columns
+    )
 
-    schema_ok = expected_cols == actual_cols
+    schema_ok = (
+        expected_cols == actual_cols
+    )
 
     if not schema_ok:
-        print("Schema validation failed.")
+
+        logger.error(
+            "Schema validation failed for %s",
+            file_name
+        )
 
         if set(expected_cols) != set(actual_cols):
-            print(f"Expected: {expected_cols}")
-            print(f"Found:    {actual_cols}")
+
+            logger.error(
+                "Expected columns: %s",
+                expected_cols
+            )
+
+            logger.error(
+                "Found columns: %s",
+                actual_cols
+            )
+
         else:
-            print(
-                "Columns are present "
-                "but in the wrong order."
+
+            logger.error(
+                "Columns are present but in the wrong order."
             )
 
         status = "Schema Failed"
         row_count = 0
 
     else:
-        print("Schema validation passed.")
+
+        logger.info(
+            "Schema validation passed for %s",
+            file_name
+        )
+
         status = "Success"
         row_count = len(orders)
 
-        print(f"Rows found: {row_count}")
+        logger.info(
+            "Rows found: %s",
+            row_count
+        )
 
+    # -----------------------------
     # Log schema failure and stop
+    # -----------------------------
+
     if not schema_ok:
+
         log_entry = pd.DataFrame([{
             "file_name": file_name,
             "status": status,
-            "row_count": row_count,
+            "rows": row_count,
             "timestamp": datetime.now()
                 .replace(microsecond=0)
                 .isoformat()
         }])
 
-        if os.path.exists(log_path):
-            log = pd.read_csv(log_path)
-            log = pd.concat([log, log_entry], ignore_index=True)
+        if os.path.exists(
+            log_path
+        ):
+
+            log = pd.read_csv(
+                log_path
+            )
+
+            log = pd.concat(
+                [log, log_entry],
+                ignore_index=True
+            )
+
         else:
+
             log = log_entry
 
-        log.to_csv(log_path, index=False)
+        log.to_csv(
+            log_path,
+            index=False
+        )
 
-        raise ValueError(f"Schema validation failed for {file_name}")
+        logger.error(
+            "Schema failure logged to: %s",
+            log_path
+        )
 
+        raise ValueError(
+            f"Schema validation failed for {file_name}"
+        )
+
+    # -----------------------------
     # Determine monthly output folder
-    order_date = pd.to_datetime(orders["order_date"].iloc[0])
+    # -----------------------------
+
+    order_date = pd.to_datetime(
+        orders["order_date"].iloc[0]
+    )
+
     month_folder = (
         f"{order_date.year}_"
         f"{order_date.month:02}"
@@ -93,7 +177,10 @@ def run(
         exist_ok=True
     )
 
+    # -----------------------------
     # Save validated copy
+    # -----------------------------
+
     output_path = os.path.join(
         output_folder,
         "orders.csv"
@@ -104,12 +191,15 @@ def run(
         index=False
     )
 
-    print(
-        f"Saved orders data to: "
-        f"{output_path}"
+    logger.info(
+        "Saved orders data to: %s",
+        output_path
     )
 
+    # -----------------------------
     # Archive raw file
+    # -----------------------------
+
     archive_path = os.path.join(
         archive_folder,
         file_name
@@ -120,12 +210,15 @@ def run(
         archive_path
     )
 
-    print(
-        f"Moved raw file to: "
-        f"{archive_path}"
+    logger.info(
+        "Moved raw file to: %s",
+        archive_path
     )
 
-    # Log ingestion
+    # -----------------------------
+    # Log ingestion outcome
+    # -----------------------------
+
     log_entry = pd.DataFrame([{
         "file_name": file_name,
         "status": status,
@@ -135,18 +228,40 @@ def run(
             .isoformat()
     }])
 
-    if os.path.exists(log_path):
-        log = pd.read_csv(log_path)
-        log = pd.concat([log, log_entry], ignore_index=True)
+    if os.path.exists(
+        log_path
+    ):
+
+        log = pd.read_csv(
+            log_path
+        )
+
+        log = pd.concat(
+            [log, log_entry],
+            ignore_index=True
+        )
+
     else:
+
         log = log_entry
 
-    log.to_csv(log_path, index=False)
-
-    print( 
-        f"Logged ingestion outcome to: "
-        f"{log_path}"
+    log.to_csv(
+        log_path,
+        index=False
     )
 
+    logger.info(
+        "Logged ingestion outcome to: %s",
+        log_path
+    )
+
+    logger.info(
+        "Ingestion completed successfully for %s",
+        file_name
+    )
+
+    # -----------------------------
     # Return location for downstream stages
+    # -----------------------------
+
     return output_folder

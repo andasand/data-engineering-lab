@@ -1,5 +1,8 @@
 import os
+import logging
 import matplotlib.pyplot as plt
+
+logger = logging.getLogger("pipeline.serve")
 
 
 def run(
@@ -31,10 +34,10 @@ def run(
         index=False
     )
 
-    print(
-        f"Saved analytics to: "
-        f"{top_products_path} and "
-        f"{top_customers_path}"
+    logger.info(
+        "Saved analytics CSV files to %s and %s",
+        top_products_path,
+        top_customers_path
     )
 
     # -----------------------------
@@ -53,7 +56,6 @@ def run(
     )
 
     plt.ylabel("Revenue")
-
     plt.tight_layout()
 
     products_chart_path = os.path.join(
@@ -62,12 +64,11 @@ def run(
     )
 
     plt.savefig(products_chart_path)
-
     plt.close()
 
-    print(
-        f"Chart saved to: "
-        f"{products_chart_path}"
+    logger.info(
+        "Saved top products chart to: %s",
+        products_chart_path
     )
 
     # -----------------------------
@@ -86,7 +87,6 @@ def run(
     )
 
     plt.ylabel("Total Spend")
-
     plt.tight_layout()
 
     customers_chart_path = os.path.join(
@@ -95,10 +95,13 @@ def run(
     )
 
     plt.savefig(customers_chart_path)
-
     plt.close()
 
-    print(
-        f"Chart saved to: "
-        f"{customers_chart_path}"
+    logger.info(
+        "Saved top customers chart to: %s",
+        customers_chart_path
+    )
+
+    logger.info(
+        "Serving completed: 2 analytics CSV files and 2 chart files created"
     )

@@ -1,5 +1,8 @@
 import os
 import pandas as pd
+import logging
+
+logger = logging.getLogger("pipeline.clean")
 
 
 def run(
@@ -24,7 +27,13 @@ def run(
     products = pd.read_csv(products_path)
     customers = pd.read_csv(customers_path)
 
-    print(f"Loaded orders from: {orders_path}")
+    input_row_count = len(orders)
+
+    logger.info(
+        "Loaded %s orders from %s",
+        input_row_count,
+        orders_path
+    )
 
     # Keep original copy for dropped-row audit
     orders_raw = orders.copy()
@@ -54,11 +63,16 @@ def run(
 
     orders = orders[~missing_mask]
 
-    print(
-        f"Removed {len(dropped_ids)} rows "
-        f"with missing required values: "
-        f"{dropped_ids}"
-    )
+    if dropped_ids:
+        logger.warning(
+            "Removed %s rows with missing required values: %s",
+            len(dropped_ids),
+            dropped_ids
+        )
+    else:
+        logger.info(
+            "No rows with missing required values detected."
+        )
 
     # -----------------------------
     # Invalid dates
@@ -81,11 +95,16 @@ def run(
 
     orders = orders[~invalid_dates]
 
-    print(
-        f"Removed {len(dropped_ids)} rows "
-        f"with invalid order_date: "
-        f"{dropped_ids}"
-    )
+    if dropped_ids:
+        logger.warning(
+            "Removed %s rows with invalid order_date: %s",
+            len(dropped_ids),
+            dropped_ids
+        )
+    else:
+        logger.info(
+            "No invalid order_date values detected."
+        )
 
     # -----------------------------
     # Numeric validation
@@ -121,13 +140,20 @@ def run(
                 "order_id"
             ].tolist()
 
-            print(
-                f"Removed {len(dropped)} rows "
-                f"with invalid {field}: "
-                f"{dropped}"
+            logger.warning(
+                "Removed %s rows with invalid %s: %s",
+                len(dropped),
+                field,
+                dropped
             )
 
             invalid_numeric_mask |= invalids
+
+        else:
+            logger.info(
+                "No invalid %s values detected.",
+                field
+            )
 
     orders = orders[
         ~invalid_numeric_mask
@@ -173,10 +199,16 @@ def run(
         ~duplicates
     ]
 
-    print(
-        f"Removed {len(dropped_ids)} "
-        f"duplicate rows: {dropped_ids}"
-    )
+    if dropped_ids:
+        logger.warning(
+            "Removed %s duplicate rows: %s",
+            len(dropped_ids),
+            dropped_ids
+        )
+    else:
+        logger.info(
+            "No duplicate rows detected."
+        )
 
     # -----------------------------
     # Customer referential integrity
@@ -200,11 +232,16 @@ def run(
         ~invalid_customers
     ]
 
-    print(
-        f"Removed {len(dropped_ids)} rows "
-        f"with invalid customer_id: "
-        f"{dropped_ids}"
-    )
+    if dropped_ids:
+        logger.warning(
+            "Removed %s rows with invalid customer_id: %s",
+            len(dropped_ids),
+            dropped_ids
+        )
+    else:
+        logger.info(
+            "All customer_id values passed referential integrity checks."
+        )
 
     # -----------------------------
     # Product referential integrity
@@ -228,11 +265,16 @@ def run(
         ~invalid_products
     ]
 
-    print(
-        f"Removed {len(dropped_ids)} rows "
-        f"with invalid product_id: "
-        f"{dropped_ids}"
-    )
+    if dropped_ids:
+        logger.warning(
+            "Removed %s rows with invalid product_id: %s",
+            len(dropped_ids),
+            dropped_ids
+        )
+    else:
+        logger.info(
+            "All product_id values passed referential integrity checks."
+        )
 
     # -----------------------------
     # Save dropped rows
@@ -242,6 +284,8 @@ def run(
         ~orders_raw["order_id"]
         .isin(orders["order_id"])
     ].copy()
+
+    rejected_row_count = len(dropped_rows)
 
     if not dropped_rows.empty:
 
@@ -255,16 +299,15 @@ def run(
             index=False
         )
 
-        print(
-            f"Saved {len(dropped_rows)} "
-            f"dropped rows to: "
-            f"{dropped_path}"
+        logger.info(
+            "Saved %s rejected rows to %s",
+            rejected_row_count,
+            dropped_path
         )
 
     else:
-        print(
-            "No rows were dropped "
-            "during cleaning."
+        logger.info(
+            "No rows were dropped during cleaning."
         )
 
     # -----------------------------
@@ -289,14 +332,18 @@ def run(
         index=False
     )
 
-    print(
-        f"Cleaned data saved to: "
-        f"{cleaned_path}"
+    clean_row_count = len(orders)
+
+    logger.info(
+        "Cleaned data saved to: %s",
+        cleaned_path
     )
 
-    print(
-        f"Final clean row count: "
-        f"{len(orders)}"
+    logger.info(
+        "Cleaning completed: %s input rows, %s clean rows, %s rejected rows",
+        input_row_count,
+        clean_row_count,
+        rejected_row_count
     )
 
     return cleaned_path
