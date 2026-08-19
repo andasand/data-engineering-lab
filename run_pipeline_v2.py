@@ -3,33 +3,13 @@ import pandas as pd
 
 from pipeline_v2 import ingest, clean, transform, serve
 
-
-# -----------------------------
-# Define folders and paths
-# -----------------------------
-
-data_folder = "data"
-archive_folder = os.path.join(
-    data_folder,
-    "archive"
-)
-
-insights_folder = "insights"
-logs_folder = "logs"
-
-products_path = os.path.join(
-    data_folder,
-    "products.csv"
-)
-
-customers_path = os.path.join(
-    data_folder,
-    "customers.csv"
-)
-
-log_path = os.path.join(
-    logs_folder,
-    "ingest_log.csv"
+from config import (
+    DATA_FOLDER,
+    ARCHIVE_FOLDER,
+    INSIGHTS_FOLDER,
+    PRODUCTS_PATH,
+    CUSTOMERS_PATH,
+    INGEST_LOG_PATH
 )
 
 
@@ -40,7 +20,7 @@ log_path = os.path.join(
 def run_pipeline():
 
     # Find an orders CSV
-    files = os.listdir(data_folder)
+    files = os.listdir(DATA_FOLDER)
 
     file_name = next(
         (
@@ -60,9 +40,9 @@ def run_pipeline():
     # Duplicate protection
     # -----------------------------
 
-    if os.path.exists(log_path):
+    if os.path.exists(INGEST_LOG_PATH):
 
-        log = pd.read_csv(log_path)
+        log = pd.read_csv(INGEST_LOG_PATH)
 
         if file_name in log["file_name"].values:
 
@@ -102,22 +82,22 @@ def run_pipeline():
 
         output_folder = ingest.run(
             file_name,
-            data_folder,
-            archive_folder,
-            insights_folder,
-            log_path
+            DATA_FOLDER,
+            ARCHIVE_FOLDER,
+            INSIGHTS_FOLDER,
+            INGEST_LOG_PATH
         )
 
         clean.run(
-            products_path,
-            customers_path,
+            PRODUCTS_PATH,
+            CUSTOMERS_PATH,
             output_folder
         )
 
         top_products, top_customers = (
             transform.run(
-                products_path,
-                customers_path,
+                PRODUCTS_PATH,
+                CUSTOMERS_PATH,
                 output_folder
             )
         )
