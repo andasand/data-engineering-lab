@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: data-engineering-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: data_engineering
+      POSTGRES_USER: pipeline_user
+      POSTGRES_PASSWORD: pipeline_password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
