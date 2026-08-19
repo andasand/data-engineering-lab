@@ -1,6 +1,8 @@
 import os
 import pandas as pd
+import logging
 
+from logging_config import setup_logging
 from pipeline_v2 import ingest, clean, transform, serve
 
 from config import (
@@ -12,6 +14,9 @@ from config import (
     INGEST_LOG_PATH
 )
 
+setup_logging()
+
+logger = logging.getLogger("pipeline")
 
 # -----------------------------
 # Run full pipeline
@@ -32,7 +37,7 @@ def run_pipeline():
     )
 
     if not file_name:
-        print("No orders file found.")
+        logger.warning("No orders file found.")
         return
 
 
@@ -46,31 +51,29 @@ def run_pipeline():
 
         if file_name in log["file_name"].values:
 
-            print(
-                f"File '{file_name}' "
-                f"has already been ingested. "
+            logger.warning(
+                f"File '{file_name}' has already been ingested. "
                 f"Skipping."
             )
 
             return
 
         else:
-            print(
+            logger.info(
                 "File not found in ingest log. "
                 "Proceeding."
             )
 
     else:
 
-        print(
+        logger.info(
             "No ingest log found. "
             "Pipeline will create one."
         )
 
 
-    print(
-        f"\nStarting pipeline for: "
-        f"{file_name}"
+    logger.info(
+        f"Starting pipeline for: {file_name}"
     )
 
 
@@ -108,14 +111,13 @@ def run_pipeline():
             output_folder
         )
 
-        print(
-            f"\nPipeline completed successfully "
-            f"for: {file_name}"
+        logger.info(
+            f"Pipeline completed successfully for: {file_name}"
         )
 
     except Exception as e:
 
-        print(
+        logger.exception(
             f"\nPipeline failed: {e}"
         )
 
