@@ -1,5 +1,7 @@
 import pandas as pd
 
+import pytest
+
 from sqlalchemy import create_engine, text
 
 from pipeline_v3 import load
@@ -127,6 +129,116 @@ def test_load_writes_expected_tables(tmp_path, monkeypatch):
             )
         ).scalar()
 
+        batch = connection.execute(
+            text(
+                """
+                SELECT
+                    batch_id,
+                    status,
+                    rows_loaded
+                FROM pipeline_batches
+                WHERE batch_id = :batch_id
+                """
+            ),
+            {"batch_id": "orders_2025_10"}
+        ).mappings().first()
+
     assert orders_count == 2
     assert products_count == 2
     assert customers_count == 2
+    assert batch["status"] == "SUCCESS"
+    assert batch["rows_loaded"] == 2
+    assert batch["batch_id"] == "orders_2025_10"
+    assert batch["status"] == "SUCCESS"
+    assert batch["rows_loaded"] == 2    
+
+def test_load_marks_batch_failed_on_error(tmp_path, monkeypatch):
+
+    db_path = tmp_path / "test_failed.db"
+
+    engine = create_engine(
+        f"sqlite:///{db_path}"
+    )
+
+    monkeypatch.setattr(
+        load,
+        "get_engine",
+        lambda: engine
+    )
+
+    enriched_orders = pd.DataFrame([
+        {
+            "order_id": 1,
+            "customer_id": 1,
+            "product_id": 201,
+            "quantity": 2,
+            "order_date": "2025-10-01",
+            "product_name": "Blue Milk Latte",
+            "price": 4.5,
+            "customer_name": "Luke Skywalker",
+            "line_total": 9.0,
+        }
+    ])
+
+    top_products = pd.DataFrame([
+        {
+            "product_id": 201,
+            "product_name": "Blue Milk Latte",
+            "total_revenue": 9.0,
+        }
+    ])
+
+    top_customers = pd.DataFrame([
+        {
+            "customer_id": 1,
+            "customer_name": "Luke Skywalker",
+            "total_spend": 9.0,
+        }
+    ])
+
+    # Force the first database write to fail.
+     
+    def broken_to_sql(*args, **kwargs):
+        raise RuntimeError("Simulated database failure")
+
+    monkeypatch.setattr(
+        pd.DataFrame,
+        "to_sql",
+        broken_to_sql
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Simulated database failure"
+    ):
+
+        load.run(
+            enriched_orders,
+            top_products,
+            top_customers,
+            "orders_failed_batch"
+        )
+
+    with engine.connect() as connection:
+
+        batch = connection.execute(
+            text(
+                """
+                SELECT
+                    batch_id,
+                    status,
+                    rows_loaded
+                FROM pipeline_batches
+                WHERE batch_id = :batch_id
+                """
+            ),
+            {
+                "batch_id": "orders_failed_batch"
+            }
+        ).mappings().first()
+
+    assert batch is not None
+    assert batch["batch_id"] == "orders_failed_batch"
+    assert batch["status"] == "FAILED"
+    assert batch["rows_loaded"] == 0
+
