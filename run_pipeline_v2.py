@@ -97,7 +97,7 @@ def run_pipeline():
             output_folder
         )
 
-        top_products, top_customers = (
+        enriched_orders, top_products, top_customers = (
             transform.run(
                 PRODUCTS_PATH,
                 CUSTOMERS_PATH,
