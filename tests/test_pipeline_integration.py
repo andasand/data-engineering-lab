@@ -125,7 +125,7 @@ def test_full_pipeline_end_to_end(tmp_path):
     # 3. Transform
     # -----------------------------
 
-    top_products, top_customers = transform.run(
+    enriched_orders, top_products, top_customers = transform.run(
         str(products_path),
         str(customers_path),
         output_folder

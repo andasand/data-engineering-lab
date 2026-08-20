@@ -87,7 +87,7 @@ def test_transform_enriches_and_aggregates(tmp_path):
     # Run transformation
     # -----------------------------
 
-    top_products, top_customers = transform.run(
+    enriched_orders, top_products, top_customers = transform.run(
         str(products_path),
         str(customers_path),
         str(output_folder)

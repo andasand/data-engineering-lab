@@ -193,4 +193,4 @@ def run(
     # Return analytics to serving
     # -----------------------------
 
-    return top_products, top_customers
+    return orders, top_products, top_customers
