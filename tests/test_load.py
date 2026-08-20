@@ -1,8 +1,7 @@
 import pandas as pd
-
 import pytest
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 
 from pipeline_v3 import load
 
@@ -83,7 +82,7 @@ def test_load_writes_expected_tables(tmp_path, monkeypatch):
     ])
 
     # -----------------------------
-    # Run database load
+    # First load
     # -----------------------------
 
     load.run(
@@ -93,8 +92,10 @@ def test_load_writes_expected_tables(tmp_path, monkeypatch):
         "orders_2025_10"
     )
 
-    # Run the same batch again.
-    # Idempotency should prevent duplicates.
+    # -----------------------------
+    # Duplicate load
+    # -----------------------------
+
     load.run(
         enriched_orders,
         top_products,
@@ -140,19 +141,28 @@ def test_load_writes_expected_tables(tmp_path, monkeypatch):
                 WHERE batch_id = :batch_id
                 """
             ),
-            {"batch_id": "orders_2025_10"}
+            {
+                "batch_id": "orders_2025_10"
+            }
         ).mappings().first()
 
     assert orders_count == 2
     assert products_count == 2
     assert customers_count == 2
-    assert batch["status"] == "SUCCESS"
-    assert batch["rows_loaded"] == 2
+
+    assert batch is not None
     assert batch["batch_id"] == "orders_2025_10"
     assert batch["status"] == "SUCCESS"
-    assert batch["rows_loaded"] == 2    
+    assert batch["rows_loaded"] == 2
 
-def test_load_marks_batch_failed_on_error(tmp_path, monkeypatch):
+
+def test_load_rolls_back_and_marks_batch_failed(
+    tmp_path,
+    monkeypatch
+):
+    # -----------------------------
+    # Temporary test database
+    # -----------------------------
 
     db_path = tmp_path / "test_failed.db"
 
@@ -165,6 +175,10 @@ def test_load_marks_batch_failed_on_error(tmp_path, monkeypatch):
         "get_engine",
         lambda: engine
     )
+
+    # -----------------------------
+    # Test datasets
+    # -----------------------------
 
     enriched_orders = pd.DataFrame([
         {
@@ -196,16 +210,43 @@ def test_load_marks_batch_failed_on_error(tmp_path, monkeypatch):
         }
     ])
 
-    # Force the first database write to fail.
-     
-    def broken_to_sql(*args, **kwargs):
-        raise RuntimeError("Simulated database failure")
+    # -----------------------------
+    # Fail on the second to_sql()
+    # -----------------------------
+
+    call_count = {
+        "value": 0
+    }
+
+    original_to_sql = pd.DataFrame.to_sql
+
+    def fail_on_second_write(
+        self,
+        *args,
+        **kwargs
+    ):
+        call_count["value"] += 1
+
+        if call_count["value"] == 2:
+            raise RuntimeError(
+                "Simulated database failure"
+            )
+
+        return original_to_sql(
+            self,
+            *args,
+            **kwargs
+        )
 
     monkeypatch.setattr(
         pd.DataFrame,
         "to_sql",
-        broken_to_sql
+        fail_on_second_write
     )
+
+    # -----------------------------
+    # Run load and expect failure
+    # -----------------------------
 
     with pytest.raises(
         RuntimeError,
@@ -218,6 +259,31 @@ def test_load_marks_batch_failed_on_error(tmp_path, monkeypatch):
             top_customers,
             "orders_failed_batch"
         )
+
+    # -----------------------------
+    # Verify rollback
+    # -----------------------------
+
+    inspector = inspect(engine)
+
+    if inspector.has_table("orders_enriched"):
+
+        with engine.connect() as connection:
+
+            orders_count = connection.execute(
+                text(
+                    "SELECT COUNT(*) "
+                    "FROM orders_enriched"
+                )
+            ).scalar()
+
+    else:
+
+        orders_count = 0
+
+    # -----------------------------
+    # Verify FAILED batch status
+    # -----------------------------
 
     with engine.connect() as connection:
 
@@ -237,8 +303,9 @@ def test_load_marks_batch_failed_on_error(tmp_path, monkeypatch):
             }
         ).mappings().first()
 
+    assert orders_count == 0
+
     assert batch is not None
     assert batch["batch_id"] == "orders_failed_batch"
     assert batch["status"] == "FAILED"
     assert batch["rows_loaded"] == 0
-

@@ -63,55 +63,49 @@ def run(
         top_customers["loaded_at"] = loaded_at
 
         # -----------------------------
-        # Append enriched orders
+        # Transactional database load
         # -----------------------------
 
-        enriched_orders.to_sql(
-            "orders_enriched",
-            engine,
-            if_exists="append",
-            index=False
-        )
+        with engine.begin() as connection:
 
-        logger.info(
-            "Loaded %s rows into orders_enriched for batch %s",
-            len(enriched_orders),
-            batch_id
-        )
+            enriched_orders.to_sql(
+                "orders_enriched",
+                connection,
+                if_exists="append",
+                index=False
+            )
 
-        # -----------------------------
-        # Append product analytics
-        # -----------------------------
+            logger.info(
+                "Loaded %s rows into orders_enriched for batch %s",
+                len(enriched_orders),
+                batch_id
+            )
 
-        top_products.to_sql(
-            "top_products",
-            engine,
-            if_exists="append",
-            index=False
-        )
+            top_products.to_sql(
+                "top_products",
+                connection,
+                if_exists="append",
+                index=False
+            )
 
-        logger.info(
-            "Loaded %s rows into top_products for batch %s",
-            len(top_products),
-            batch_id
-        )
+            logger.info(
+                "Loaded %s rows into top_products for batch %s",
+                len(top_products),
+                batch_id
+            )
 
-        # -----------------------------
-        # Append customer analytics
-        # -----------------------------
+            top_customers.to_sql(
+                "top_customers",
+                connection,
+                if_exists="append",
+                index=False
+            )
 
-        top_customers.to_sql(
-            "top_customers",
-            engine,
-            if_exists="append",
-            index=False
-        )
-
-        logger.info(
-            "Loaded %s rows into top_customers for batch %s",
-            len(top_customers),
-            batch_id
-        )
+            logger.info(
+                "Loaded %s rows into top_customers for batch %s",
+                len(top_customers),
+                batch_id
+            )
 
         # -----------------------------
         # Mark batch successful
