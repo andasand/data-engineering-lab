@@ -19,6 +19,13 @@ def load_to_staging(
 
     staged = enriched_orders.copy()
 
+    # Normalize order_date before writing to staging so
+    # PostgreSQL receives real date values rather than text.
+    staged["order_date"] = pd.to_datetime(
+        staged["order_date"],
+        errors="raise"
+    ).dt.date
+
     staged["batch_id"] = batch_id
     staged["loaded_at"] = pd.Timestamp.now("UTC")
 

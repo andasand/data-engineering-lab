@@ -37,6 +37,7 @@ def test_create_tables_creates_expected_schema(tmp_path):
     expected_tables = {
         "pipeline_batches",
         "orders_enriched",
+        "staging_orders",
         "top_products",
         "top_customers",
     }

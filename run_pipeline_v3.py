@@ -1,6 +1,7 @@
 import os
-import pandas as pd
 import logging
+
+import pandas as pd
 
 from logging_config import setup_logging
 
@@ -8,10 +9,15 @@ from pipeline_v2 import (
     ingest,
     clean,
     transform,
-    serve
+    serve,
 )
 
-from pipeline_v3 import load
+from pipeline_v3 import (
+    load,
+    batches,
+)
+
+from pipeline_v3.database import get_engine
 
 from config import (
     DATA_FOLDER,
@@ -19,7 +25,7 @@ from config import (
     INSIGHTS_FOLDER,
     PRODUCTS_PATH,
     CUSTOMERS_PATH,
-    INGEST_LOG_PATH
+    INGEST_LOG_PATH,
 )
 
 
@@ -55,11 +61,17 @@ def run_pipeline():
 
         return
 
-    batch_id = os.path.splitext(file_name)[0]
+    batch_id = os.path.splitext(
+        file_name
+    )[0]
+
+    engine = get_engine()
 
     # -----------------------------
-    # Duplicate protection
+    # Determine ingestion state
     # -----------------------------
+
+    already_ingested = False
 
     if os.path.exists(
         INGEST_LOG_PATH
@@ -69,24 +81,63 @@ def run_pipeline():
             INGEST_LOG_PATH
         )
 
-        if file_name in log["file_name"].values:
+        already_ingested = (
+            file_name
+            in log["file_name"].values
+        )
+
+    # -----------------------------
+    # Decide whether to skip
+    # or resume
+    # -----------------------------
+
+    if already_ingested:
+
+        batch = batches.get_batch(
+            batch_id,
+            engine=engine
+        )
+
+        if (
+            batch is not None
+            and batch["status"] == "SUCCESS"
+        ):
 
             logger.warning(
-                "File '%s' has already been ingested. Skipping.",
-                file_name
+                "File '%s' has already been ingested "
+                "and batch %s completed successfully. "
+                "Skipping.",
+                file_name,
+                batch_id,
             )
 
             return
 
-        logger.info(
-            "File not found in ingest log. Proceeding."
+        logger.warning(
+            "File '%s' was already ingested, "
+            "but batch %s is not complete. "
+            "Resuming downstream processing.",
+            file_name,
+            batch_id,
         )
 
     else:
 
-        logger.info(
-            "No ingest log found. Pipeline will create one."
-        )
+        if os.path.exists(
+            INGEST_LOG_PATH
+        ):
+
+            logger.info(
+                "File not found in ingest log. "
+                "Proceeding with full pipeline."
+            )
+
+        else:
+
+            logger.info(
+                "No ingest log found. "
+                "Pipeline will create one."
+            )
 
     logger.info(
         "Starting v3 pipeline for %s",
@@ -99,53 +150,90 @@ def run_pipeline():
 
     try:
 
-        output_folder = ingest.run(
-            file_name,
-            DATA_FOLDER,
-            ARCHIVE_FOLDER,
-            INSIGHTS_FOLDER,
-            INGEST_LOG_PATH
-        )
+        if already_ingested:
 
-        clean.run(
-            PRODUCTS_PATH,
-            CUSTOMERS_PATH,
-            output_folder
-        )
+            # Reuse the existing monthly
+            # output folder.
+            parts = batch_id.split("_")
+
+            year = parts[-2]
+            month = parts[-1]
+
+            output_folder = os.path.join(
+                INSIGHTS_FOLDER,
+                f"{year}_{month}"
+            )
+
+            cleaned_path = os.path.join(
+                output_folder,
+                "orders_clean.csv"
+            )
+
+            if not os.path.exists(
+                cleaned_path
+            ):
+                raise FileNotFoundError(
+                    "Cannot resume batch "
+                    f"{batch_id}: "
+                    f"{cleaned_path} "
+                    "does not exist."
+                )
+
+            logger.info(
+                "Resuming pipeline from existing "
+                "output folder: %s",
+                output_folder,
+            )
+
+        else:
+
+            output_folder = ingest.run(
+                file_name,
+                DATA_FOLDER,
+                ARCHIVE_FOLDER,
+                INSIGHTS_FOLDER,
+                INGEST_LOG_PATH,
+            )
+
+            clean.run(
+                PRODUCTS_PATH,
+                CUSTOMERS_PATH,
+                output_folder,
+            )
 
         (
             enriched_orders,
             top_products,
-            top_customers
+            top_customers,
         ) = transform.run(
             PRODUCTS_PATH,
             CUSTOMERS_PATH,
-            output_folder
+            output_folder,
         )
 
         load.run(
             enriched_orders,
             top_products,
             top_customers,
-            batch_id
+            batch_id,
         )
 
         serve.run(
             top_products,
             top_customers,
-            output_folder
+            output_folder,
         )
 
         logger.info(
             "v3 pipeline completed successfully for %s",
-            file_name
+            file_name,
         )
 
     except Exception:
 
         logger.exception(
             "v3 pipeline failed for %s",
-            file_name
+            file_name,
         )
 
 
