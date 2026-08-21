@@ -1,12 +1,16 @@
 import pandas as pd
 import pytest
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, text
 
-from pipeline_v3 import load
+from pipeline_v3 import load, staging
+from pipeline_v3.schema import create_tables
 
 
-def test_load_writes_expected_tables(tmp_path, monkeypatch):
+def test_load_writes_expected_tables(
+    tmp_path,
+    monkeypatch
+):
     # -----------------------------
     # Temporary test database
     # -----------------------------
@@ -16,6 +20,9 @@ def test_load_writes_expected_tables(tmp_path, monkeypatch):
     engine = create_engine(
         f"sqlite:///{db_path}"
     )
+
+    # Create the complete database schema
+    create_tables(engine)
 
     # Force load.run() to use our
     # temporary database instead
@@ -59,11 +66,13 @@ def test_load_writes_expected_tables(tmp_path, monkeypatch):
         {
             "product_id": 201,
             "product_name": "Blue Milk Latte",
+            "price": 4.5,
             "total_revenue": 9.0,
         },
         {
             "product_id": 202,
             "product_name": "Death Star Espresso",
+            "price": 3.0,
             "total_revenue": 9.0,
         },
     ])
@@ -111,22 +120,37 @@ def test_load_writes_expected_tables(tmp_path, monkeypatch):
 
         orders_count = connection.execute(
             text(
-                "SELECT COUNT(*) "
-                "FROM orders_enriched"
+                """
+                SELECT COUNT(*)
+                FROM orders_enriched
+                """
             )
         ).scalar()
 
         products_count = connection.execute(
             text(
-                "SELECT COUNT(*) "
-                "FROM top_products"
+                """
+                SELECT COUNT(*)
+                FROM top_products
+                """
             )
         ).scalar()
 
         customers_count = connection.execute(
             text(
-                "SELECT COUNT(*) "
-                "FROM top_customers"
+                """
+                SELECT COUNT(*)
+                FROM top_customers
+                """
+            )
+        ).scalar()
+
+        staging_count = connection.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM staging_orders
+                """
             )
         ).scalar()
 
@@ -150,35 +174,32 @@ def test_load_writes_expected_tables(tmp_path, monkeypatch):
     assert products_count == 2
     assert customers_count == 2
 
+    # Successful load should clear staging
+    assert staging_count == 0
+
     assert batch is not None
     assert batch["batch_id"] == "orders_2025_10"
     assert batch["status"] == "SUCCESS"
     assert batch["rows_loaded"] == 2
 
 
-def test_load_rolls_back_and_marks_batch_failed(
+def test_load_rolls_back_curated_promotion_and_marks_failed(
     tmp_path,
     monkeypatch
 ):
-    # -----------------------------
-    # Temporary test database
-    # -----------------------------
-
     db_path = tmp_path / "test_failed.db"
 
     engine = create_engine(
         f"sqlite:///{db_path}"
     )
 
+    create_tables(engine)
+
     monkeypatch.setattr(
         load,
         "get_engine",
         lambda: engine
     )
-
-    # -----------------------------
-    # Test datasets
-    # -----------------------------
 
     enriched_orders = pd.DataFrame([
         {
@@ -198,6 +219,7 @@ def test_load_rolls_back_and_marks_batch_failed(
         {
             "product_id": 201,
             "product_name": "Blue Milk Latte",
+            "price": 4.5,
             "total_revenue": 9.0,
         }
     ])
@@ -210,30 +232,27 @@ def test_load_rolls_back_and_marks_batch_failed(
         }
     ])
 
-    # -----------------------------
-    # Fail on the second to_sql()
-    # -----------------------------
-
-    call_count = {
-        "value": 0
-    }
+    # --------------------------------
+    # Let staging + merge succeed,
+    # then fail on first aggregate write
+    # --------------------------------
 
     original_to_sql = pd.DataFrame.to_sql
 
-    def fail_on_second_write(
+    def fail_top_products(
         self,
+        name,
         *args,
         **kwargs
     ):
-        call_count["value"] += 1
-
-        if call_count["value"] == 2:
+        if name == "top_products":
             raise RuntimeError(
-                "Simulated database failure"
+                "Simulated aggregate load failure"
             )
 
         return original_to_sql(
             self,
+            name,
             *args,
             **kwargs
         )
@@ -241,18 +260,13 @@ def test_load_rolls_back_and_marks_batch_failed(
     monkeypatch.setattr(
         pd.DataFrame,
         "to_sql",
-        fail_on_second_write
+        fail_top_products
     )
-
-    # -----------------------------
-    # Run load and expect failure
-    # -----------------------------
 
     with pytest.raises(
         RuntimeError,
-        match="Simulated database failure"
+        match="Simulated aggregate load failure"
     ):
-
         load.run(
             enriched_orders,
             top_products,
@@ -260,32 +274,59 @@ def test_load_rolls_back_and_marks_batch_failed(
             "orders_failed_batch"
         )
 
-    # -----------------------------
-    # Verify rollback
-    # -----------------------------
-
-    inspector = inspect(engine)
-
-    if inspector.has_table("orders_enriched"):
-
-        with engine.connect() as connection:
-
-            orders_count = connection.execute(
-                text(
-                    "SELECT COUNT(*) "
-                    "FROM orders_enriched"
-                )
-            ).scalar()
-
-    else:
-
-        orders_count = 0
-
-    # -----------------------------
-    # Verify FAILED batch status
-    # -----------------------------
-
     with engine.connect() as connection:
+
+        orders_count = connection.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM orders_enriched
+                WHERE batch_id = :batch_id
+                """
+            ),
+            {
+                "batch_id": "orders_failed_batch"
+            }
+        ).scalar()
+
+        products_count = connection.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM top_products
+                WHERE batch_id = :batch_id
+                """
+            ),
+            {
+                "batch_id": "orders_failed_batch"
+            }
+        ).scalar()
+
+        customers_count = connection.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM top_customers
+                WHERE batch_id = :batch_id
+                """
+            ),
+            {
+                "batch_id": "orders_failed_batch"
+            }
+        ).scalar()
+
+        staged_count = connection.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM staging_orders
+                WHERE batch_id = :batch_id
+                """
+            ),
+            {
+                "batch_id": "orders_failed_batch"
+            }
+        ).scalar()
 
         batch = connection.execute(
             text(
@@ -303,8 +344,15 @@ def test_load_rolls_back_and_marks_batch_failed(
             }
         ).mappings().first()
 
+    # Curated transaction should have rolled back
     assert orders_count == 0
+    assert products_count == 0
+    assert customers_count == 0
 
+    # Staging should remain for retry/debugging
+    assert staged_count == 1
+
+    # Batch lifecycle should record the failure
     assert batch is not None
     assert batch["batch_id"] == "orders_failed_batch"
     assert batch["status"] == "FAILED"

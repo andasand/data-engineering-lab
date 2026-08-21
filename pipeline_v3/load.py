@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 
 from pipeline_v3.database import get_engine
-from pipeline_v3 import batches
+from pipeline_v3 import batches, staging
 
 
 logger = logging.getLogger("pipeline.load")
@@ -25,12 +25,10 @@ def run(
         batch_id,
         engine=engine
     ):
-
         logger.warning(
             "Batch %s already completed successfully. Skipping database load.",
             batch_id
         )
-
         return
 
     # -----------------------------
@@ -44,17 +42,13 @@ def run(
 
     try:
         # -----------------------------
-        # Add batch metadata
+        # Add metadata to aggregates
         # -----------------------------
 
         loaded_at = pd.Timestamp.now("UTC")
 
-        enriched_orders = enriched_orders.copy()
         top_products = top_products.copy()
         top_customers = top_customers.copy()
-
-        enriched_orders["batch_id"] = batch_id
-        enriched_orders["loaded_at"] = loaded_at
 
         top_products["batch_id"] = batch_id
         top_products["loaded_at"] = loaded_at
@@ -63,21 +57,29 @@ def run(
         top_customers["loaded_at"] = loaded_at
 
         # -----------------------------
-        # Transactional database load
+        # Stage enriched orders
+        # -----------------------------
+
+        staging.load_to_staging(
+            enriched_orders,
+            batch_id,
+            engine=engine
+        )
+
+        # -----------------------------
+        # Atomic curated promotion
         # -----------------------------
 
         with engine.begin() as connection:
 
-            enriched_orders.to_sql(
-                "orders_enriched",
-                connection,
-                if_exists="append",
-                index=False
+            merged_rows = staging.merge_from_staging(
+                batch_id,
+                connection=connection
             )
 
             logger.info(
-                "Loaded %s rows into orders_enriched for batch %s",
-                len(enriched_orders),
+                "Merged %s rows into orders_enriched for batch %s",
+                merged_rows,
                 batch_id
             )
 
@@ -108,12 +110,22 @@ def run(
             )
 
         # -----------------------------
+        # Clear staging only after
+        # successful curated commit
+        # -----------------------------
+
+        staging.clear_staging(
+            batch_id,
+            engine=engine
+        )
+
+        # -----------------------------
         # Mark batch successful
         # -----------------------------
 
         batches.complete_batch(
             batch_id,
-            rows_loaded=len(enriched_orders),
+            rows_loaded=merged_rows,
             engine=engine
         )
 
@@ -123,9 +135,8 @@ def run(
         )
 
     except Exception:
-        # -----------------------------
-        # Mark batch failed
-        # -----------------------------
+        # Staging is intentionally retained on failure
+        # so the batch can be inspected or retried.
 
         batches.fail_batch(
             batch_id,

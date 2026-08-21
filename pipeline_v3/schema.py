@@ -141,6 +141,81 @@ orders_enriched = Table(
 
 
 # --------------------------------------------------
+# Staging orders
+# --------------------------------------------------
+
+staging_orders = Table(
+    "staging_orders",
+    metadata,
+
+    Column(
+        "order_id",
+        Integer,
+        nullable=False
+    ),
+
+    Column(
+        "customer_id",
+        Integer,
+        nullable=False
+    ),
+
+    Column(
+        "product_id",
+        Integer,
+        nullable=False
+    ),
+
+    Column(
+        "quantity",
+        Integer,
+        nullable=False
+    ),
+
+    Column(
+        "order_date",
+        Date,
+        nullable=False
+    ),
+
+    Column(
+        "product_name",
+        String(255),
+        nullable=False
+    ),
+
+    Column(
+        "price",
+        Float,
+        nullable=False
+    ),
+
+    Column(
+        "customer_name",
+        String(255),
+        nullable=False
+    ),
+
+    Column(
+        "line_total",
+        Float,
+        nullable=False
+    ),
+
+    Column(
+        "batch_id",
+        String(255),
+        nullable=False
+    ),
+
+    Column(
+        "loaded_at",
+        DateTime(timezone=True),
+        nullable=False
+    )
+)
+
+# --------------------------------------------------
 # Product analytics
 # --------------------------------------------------
 
