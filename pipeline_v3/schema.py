@@ -162,6 +162,12 @@ top_products = Table(
     ),
 
     Column(
+        "price",
+        Float,
+        nullable=False
+    ),
+
+    Column(
         "total_revenue",
         Float,
         nullable=False
