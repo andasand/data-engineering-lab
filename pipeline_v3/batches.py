@@ -231,7 +231,7 @@ def fail_batch(batch_id, engine=None):
 
     ensure_table(engine)
 
-    completed_at = pd.Timestamp.utcnow().to_pydatetime()
+    completed_at = pd.Timestamp.now("UTC").to_pydatetime()
 
     statement = text(
         """

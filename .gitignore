@@ -21,3 +21,6 @@ Thumbs.db
 
 # DB secrets
 .env
+
+# data archives
+data/archive/
