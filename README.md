@@ -1,22 +1,22 @@
-# Data Engineering Lab 🚀**
+**# Data Engineering Lab 🚀****
 
-> ****May the pipeline be with you.****
+> ********May the pipeline be with you.******
 
-A local batch data engineering project built with **Python, pandas, PostgreSQL, SQLAlchemy, and Docker** to move questionable CSV files from the **Dark Side of raw data** toward clean, enriched, persistent, and actually useful analytics.
+A local batch data engineering project built with ****Python, pandas, PostgreSQL, SQLAlchemy, and Docker**** to move questionable CSV files from the ****Dark Side of raw data**** toward clean, enriched, persistent, and actually useful analytics.
 
-The project started as a recreation of the KodeKloud **Data Engineering Fundamentals** pipeline and evolved into a modular, tested Python pipeline with centralized orchestration, structured logging, transactional PostgreSQL loading, explicit database schemas, and Alembic migrations.
+The project started as a recreation of the KodeKloud ****Data Engineering Fundamentals**** pipeline and evolved into a modular, tested Python pipeline with centralized orchestration, structured logging, transactional PostgreSQL loading, explicit database schemas, and Alembic migrations.
 
 The sample dataset happens to involve Star Wars characters buying suspicious amounts of coffee.
 
 Apparently even Darth Vader needs caffeine.
 
----
+**---**
 
-## 🚀 The Pipeline**
+**## 🚀 The Pipeline****
 
 Our mission is simple:
 
-**Take messy orders. Reject Sith data. Produce Jedi analytics.**
+****Take messy orders. Reject Sith data. Produce Jedi analytics.****
 
 ```mermaid
 
@@ -32,13 +32,13 @@ flowchart LR
 
 The current pipeline follows five major stages:
 
-**Ingest → Clean → Transform → Load → Serve**
+****Ingest → Clean → Transform → Load → Serve****
 
 Instead of one giant architecture diagram, each stage is illustrated where it is discussed.
 
----
+**---**
 
-# 1. Ingest — A New Hope**
+**# 1. Ingest — A New Hope****
 
 Every adventure begins with somebody dropping a CSV file into a folder.
 
@@ -102,9 +102,9 @@ If an incoming filename already exists in the ingestion log, the pipeline skips 
 
 Hopefully valid CSV leaves.
 
----
+**---**
 
-# 2. Clean — The Data Strikes Back**
+**# 2. Clean — The Data Strikes Back****
 
 Raw data cannot be trusted.
 
@@ -148,7 +148,7 @@ The cleaning stage checks for:
 
 - Other disturbances in the data Force.
 
-Customer and product checks provide basic **referential integrity** between orders and the reference datasets.
+Customer and product checks provide basic ****referential integrity**** between orders and the reference datasets.
 
 Bad records aren't silently destroyed. They are preserved in:
 
@@ -160,19 +160,19 @@ orders_dropped.csv
 
 because good data engineering means keeping evidence of what happened.
 
-### Current casualty report**
+**### Current casualty report****
 
 The original sample batch contains 50 incoming orders.
 
-| Status | Rows |
+\| Status | Rows |
 
-| --- | ---: |
+\| --- | ---: |
 
-| Entered the pipeline | 50 |
+\| Entered the pipeline | 50 |
 
-| Banished to the Dark Side | 10 |
+\| Banished to the Dark Side | 10 |
 
-| Survived cleaning | 40 |
+\| Survived cleaning | 40 |
 
 The rejected records included:
 
@@ -192,7 +192,7 @@ Invalid product IDs:         1
 
 ```
 
-**80% survival rate. The Force was reasonably strong with this dataset.**
+****80% survival rate. The Force was reasonably strong with this dataset.****
 
 The cleaning stage produces:
 
@@ -204,9 +204,9 @@ orders_dropped.csv
 
 ```
 
----
+**---**
 
-# 3. Transform — Return of the JOIN**
+**# 3. Transform — Return of the JOIN****
 
 Now that the data is trustworthy, we can actually do something with it.
 
@@ -260,84 +260,110 @@ orders_enriched.csv
 
 ```
 
-## ☕ Top Products by Revenue**
+**## ☕ Top Products by Revenue****
 
-| Product | Revenue |
+\| Product | Revenue |
 
-| --- | ---: |
+\| --- | ---: |
 
-| Blue Milk Latte | $103.50 |
+\| Blue Milk Latte | $103.50 |
 
-| Wookiee Cappuccino | $73.50 |
+\| Wookiee Cappuccino | $73.50 |
 
-| Tatooine Mocha | $72.00 |
+\| Tatooine Mocha | $72.00 |
 
-**Blue Milk Latte wins.**
+****Blue Milk Latte wins.****
 
-## 👑 Top Customers by Spend**
+**## 👑 Top Customers by Spend****
 
-| Customer | Spend |
+\| Customer | Spend |
 
-| --- | ---: |
+\| --- | ---: |
 
-| Chewbacca | $62.00 |
+\| Chewbacca | $62.00 |
 
-| Leia Organa | $59.50 |
+\| Leia Organa | $59.50 |
 
-| Darth Vader | $53.50 |
+\| Darth Vader | $53.50 |
 
-**Chewbacca is our best customer.**
+****Chewbacca is our best customer.****
 
 This raises questions the pipeline is not currently equipped to answer.
 
----
+**---**
 
-# 4. Load — Attack of the PostgreSQL
+**# 4. Load — Attack of the PostgreSQL**
 
 Version 4 turns the PostgreSQL load into a transactional, schema-managed database stage.
 
 ```mermaid
+
 flowchart LR
-    A[Transformed Data] --> B[Batch Control]
-    B --> C{Batch SUCCESS?}
-    C -- Yes --> D[Skip Load]
-    C -- No --> E[Mark RUNNING]
-    E --> F[Transactional Load]
-    F --> G{Load Result}
-    G -- Success --> H[Mark SUCCESS]
-    G -- Failure --> I[Rollback]
-    I --> J[Mark FAILED]
+
+    A[Transformed Data] --> B[Batch Control]
+
+    B --> C{Batch SUCCESS?}
+
+    C -- Yes --> D[Skip Load]
+
+    C -- No --> E[Mark RUNNING]
+
+    E --> F[Transactional Load]
+
+    F --> G{Load Result}
+
+    G -- Success --> H[Mark SUCCESS]
+
+    G -- Failure --> I[Rollback]
+
+    I --> J[Mark FAILED]
+
 ```
 
 The database load stage writes:
 
 ```text
+
 orders_enriched
+
 top_products
+
 top_customers
+
 pipeline_batches
+
 ```
 
 Each load receives a batch identifier derived from the incoming filename:
 
 ```text
+
 orders_2025_10.csv
-        ↓
+
+        ↓
+
 orders_2025_10
+
 ```
 
 Persisted analytical records include:
 
 ```text
+
 batch_id
+
 loaded_at
+
 ```
 
 The `pipeline_batches` control table records the lifecycle of each database load:
 
 ```text
+
 RUNNING → SUCCESS
-        ↘ FAILED
+
+        ↘ FAILED
+
 ```
 
 Successful batches are idempotent. If a `batch_id` has already completed successfully, the loader skips it rather than inserting duplicate data.
@@ -345,46 +371,62 @@ Successful batches are idempotent. If a `batch_id` has already completed success
 The three analytical tables are loaded inside a database transaction. If any write fails, the transaction is rolled back and the batch is recorded as `FAILED`. A successful transaction is committed and recorded as `SUCCESS`.
 
 ```mermaid
+
 flowchart TB
-    A[pipeline_batches] -->|batch_id FK| B[orders_enriched]
-    A -->|batch_id FK| C[top_products]
-    A -->|batch_id FK| D[top_customers]
+
+    A[pipeline_batches] -->|batch_id FK| B[orders_enriched]
+
+    A -->|batch_id FK| C[top_products]
+
+    A -->|batch_id FK| D[top_customers]
+
 ```
 
 The explicit SQLAlchemy schema now defines database-level guarantees:
 
 - Composite primary key `(batch_id, order_id)` on `orders_enriched`.
+
 - Composite primary key `(batch_id, product_id)` on `top_products`.
+
 - Composite primary key `(batch_id, customer_id)` on `top_customers`.
+
 - Foreign keys from all analytical tables to `pipeline_batches`.
+
 - A `CHECK` constraint limiting batch status to `RUNNING`, `SUCCESS`, or `FAILED`.
+
 - Required `NOT NULL` fields.
+
 - A real PostgreSQL `date` type for `order_date`.
+
 - Timezone-aware load and batch timestamps.
 
 PostgreSQL runs locally in Docker, SQLAlchemy provides the Python database interface, and Alembic manages schema evolution.
 
-## 🧬 Database Migrations
+**## 🧬 Database Migrations**
 
 Database changes are versioned with Alembic rather than requiring tables to be dropped and recreated.
 
 Check the current database revision:
 
 ```bash
+
 alembic current
+
 ```
 
 Apply pending migrations:
 
 ```bash
+
 alembic upgrade head
+
 ```
 
 The initial v0.4 migration also safely backfills historical batch-control records before applying foreign-key constraints.
 
----
+**---**
 
-# 5. Serve — Revenge of the Charts**
+**# 5. Serve — Revenge of the Charts****
 
 Persistent data is useful. Humans still appreciate something they can actually look at.
 
@@ -416,13 +458,13 @@ The CSV files provide reusable analytical datasets.
 
 Matplotlib turns the aggregates into bar charts so humans don't have to stare at DataFrames all day.
 
----
+**---**
 
-# 🧩 From Scripts to a Data Pipeline**
+**# 🧩 From Scripts to a Data Pipeline****
 
 The project has deliberately evolved in stages.
 
-## Version 1 — Learn the Pieces**
+**## Version 1 — Learn the Pieces****
 
 ```text
 
@@ -440,7 +482,7 @@ pipeline/
 
 Each stage was developed and executed independently.
 
-## Version 2 — Make It Reusable and Testable**
+**## Version 2 — Make It Reusable and Testable****
 
 ```text
 
@@ -462,7 +504,7 @@ Each stage exposes a `run()` function, and `run_pipeline_v2.py` coordinates exec
 
 Version 2 introduced centralized configuration, structured logging, unit tests, integration testing, and reusable stage interfaces.
 
-## Version 3 — Persist the History**
+**## Version 3 — Persist the History****
 
 ```text
 
@@ -502,10 +544,58 @@ Serve
 
 The database loader supports historical batch accumulation and duplicate-batch protection.
 
-The project currently has **11 automated tests** covering ingestion, cleaning, transformation, serving, transactional loading, rollback behavior, schema creation, constraints, and end-to-end pipeline behavior.
+The project currently has ****11 automated tests**** covering ingestion, cleaning, transformation, serving, transactional loading, rollback behavior, schema creation, constraints, and end-to-end pipeline behavior.
 
 
-## Version 4 — The Schema Awakens
+
+**## Version 4 — The Schema Awakens**
+
+```text
+
+pipeline_v3/
+
+├── __init__.py
+
+├── batches.py
+
+├── database.py
+
+├── load.py
+
+└── schema.py
+
+migrations/
+
+└── versions/
+
+```
+
+Version 4 adds production-style database controls:
+
+- Batch lifecycle tracking with `RUNNING`, `SUCCESS`, and `FAILED`.
+
+- Transactional multi-table loads.
+
+- Rollback behavior when a database write fails.
+
+- Explicit SQLAlchemy table definitions.
+
+- Composite primary keys and foreign keys.
+
+- Database `CHECK` and `NOT NULL` constraints.
+
+- Alembic schema migrations.
+
+- Historical batch-control backfilling.
+
+- Schema and constraint tests.
+
+The project currently has ****11 automated tests**** covering ingestion, cleaning, transformation, serving, transactional loading, rollback behavior, schema creation, database constraints, and end-to-end pipeline behavior.
+
+**---**
+
+
+**## Version 5 — The Staging Menace**
 
 ```text
 pipeline_v3/
@@ -513,29 +603,43 @@ pipeline_v3/
 ├── batches.py
 ├── database.py
 ├── load.py
-└── schema.py
-
-migrations/
-└── versions/
+├── schema.py
+└── staging.py
 ```
 
-Version 4 adds production-style database controls:
+Version 5 adds a recoverable incremental loading architecture:
 
-- Batch lifecycle tracking with `RUNNING`, `SUCCESS`, and `FAILED`.
-- Transactional multi-table loads.
-- Rollback behavior when a database write fails.
-- Explicit SQLAlchemy table definitions.
-- Composite primary keys and foreign keys.
-- Database `CHECK` and `NOT NULL` constraints.
-- Alembic schema migrations.
-- Historical batch-control backfilling.
-- Schema and constraint tests.
+- Persistent `staging_orders`.
+- Date normalization before staging.
+- Incremental staging-to-curated merge.
+- Atomic promotion of `orders_enriched`, `top_products`, and `top_customers`.
+- Transaction rollback when any curated write fails.
+- Staging retention after failed promotion.
+- Resume support for already-ingested failed batches.
+- Alembic-managed staging schema.
+- Dedicated staging, rollback, resume, schema, and v0.5 integration tests.
 
-The project currently has **11 automated tests** covering ingestion, cleaning, transformation, serving, transactional loading, rollback behavior, schema creation, database constraints, and end-to-end pipeline behavior.
+```mermaid
+flowchart TB
+    A[Transformed Orders] --> B[staging_orders]
+    B --> C[BEGIN TRANSACTION]
+    C --> D[Incremental Merge]
+    D --> E[Load top_products]
+    E --> F[Load top_customers]
+    F --> G{Success?}
+    G -- Yes --> H[COMMIT]
+    H --> I[Clear Staging]
+    I --> J[Batch SUCCESS]
+    G -- No --> K[ROLLBACK]
+    K --> L[Retain Staging]
+    L --> M[Batch FAILED]
+```
 
----
+The project currently has **16 automated tests**.
 
-# 📁 Project Structure
+**---**
+
+**# 📁 Project Structure**
 
 ```text
 
@@ -653,11 +757,11 @@ data-engineering-lab/
 
 ```
 
----
+**---**
 
-# ⚡ Execute Order 66**
+**# ⚡ Execute Order 66****
 
-Okay, not **that** Order 66.
+Okay, not ****that**** Order 66.
 
 Create and activate a virtual environment:
 
@@ -753,99 +857,99 @@ pytest -v
 
 ```
 
-The current suite contains **11 tests**.
+The current suite contains ****11 tests****.
 
----
+**---**
 
-# 🔍 Data Engineering Concepts Demonstrated**
+**# 🔍 Data Engineering Concepts Demonstrated****
 
-### Batch ingestion**
+**### Batch ingestion****
 
 Incoming order files are processed as discrete batches.
 
-### Idempotency**
+**### Idempotency****
 
 The ingestion layer prevents repeated input-file processing, while the database layer independently prevents repeated `batch_id` loads.
 
-### Schema validation**
+**### Schema validation****
 
 Incoming files are checked against an expected structure before downstream processing.
 
-### Data-quality validation**
+**### Data-quality validation****
 
 Records are checked for missing values, malformed dates, invalid numeric fields, and duplicates.
 
-### Referential integrity**
+**### Referential integrity****
 
 Orders must reference customers and products that actually exist.
 
 A surprisingly high bar for the Empire.
 
-### Auditability**
+**### Auditability****
 
 Rejected records are preserved, raw files are archived, and structured logs record pipeline activity.
 
-### Data enrichment**
+**### Data enrichment****
 
 Orders are joined with customer and product reference datasets.
 
-### Derived metrics**
+**### Derived metrics****
 
 Revenue is calculated from `quantity × price`.
 
-### Aggregation**
+**### Aggregation****
 
 The pipeline calculates product revenue and customer spending.
 
-### Historical persistence**
+**### Historical persistence****
 
 PostgreSQL retains multiple batches rather than replacing the previous month's transformed data.
 
-### Batch metadata**
+**### Batch metadata****
 
 Persisted records include `batch_id` and `loaded_at`.
 
-### Batch lifecycle tracking
+**### Batch lifecycle tracking**
 
 The `pipeline_batches` table records whether a database load is `RUNNING`, `SUCCESS`, or `FAILED`, along with row counts and timestamps.
 
-### Transactional loading
+**### Transactional loading**
 
 The analytical tables are loaded as a transaction. A failure rolls back the data writes rather than leaving a partially loaded batch.
 
-### Database constraints
+**### Database constraints**
 
 Composite primary keys, foreign keys, `NOT NULL` rules, and a batch-status `CHECK` constraint enforce integrity in PostgreSQL itself.
 
-### Schema migrations
+**### Schema migrations**
 
 Alembic versions database changes so the schema can evolve without dropping and recreating production-style tables.
 
-### Modular design**
+**### Modular design****
 
 Pipeline stages are reusable functions rather than one giant script held together by hope.
 
-### Orchestration**
+**### Orchestration****
 
 `run_pipeline_v3.py` coordinates the complete workflow.
 
-### Automated testing**
+**### Automated testing****
 
 Unit and integration tests validate individual stages and end-to-end behavior.
 
-### Containerized infrastructure**
+**### Containerized infrastructure****
 
 PostgreSQL runs as a Docker Compose service.
 
-### Serving**
+**### Serving****
 
 Processed analytical datasets and visualizations are produced for downstream consumption.
 
----
+**---**
 
-# 🏷️ Version History**
+**# 🏷️ Version History****
 
-## v0.1.0 — The Pipeline Awakens**
+**## v0.1.0 — The Pipeline Awakens****
 
 The first working end-to-end modular batch pipeline, including ingestion, cleaning, enrichment, aggregation, CSV analytics, visualizations, and single-command orchestration.
 
@@ -863,7 +967,7 @@ Chewbacca bought the most coffee.
 
 Science.
 
-## v0.2.0 — The Tests Strike Back**
+**## v0.2.0 — The Tests Strike Back****
 
 The pipeline gained engineering guardrails:
 
@@ -877,7 +981,7 @@ The pipeline gained engineering guardrails:
 
 - Improved project documentation.
 
-## v0.3.0 — Return of the Database**
+**## v0.3.0 — Return of the Database****
 
 Version 3 introduces:
 
@@ -903,37 +1007,65 @@ October and November can now coexist peacefully in PostgreSQL.
 
 For now.
 
----
+**---**
 
-## v0.4.0 — The Schema Awakens
+**## v0.4.0 — The Schema Awakens**
 
 Version 4 strengthens the persistence layer with:
 
 - A `pipeline_batches` control table.
+
 - `RUNNING`, `SUCCESS`, and `FAILED` batch lifecycle states.
+
 - Transactional multi-table database loads.
+
 - Rollback and failed-batch tracking.
+
 - An explicit SQLAlchemy schema.
+
 - Composite primary keys.
+
 - Foreign-key relationships.
+
 - Database `CHECK` and `NOT NULL` constraints.
+
 - Alembic schema migrations.
+
 - Historical batch metadata backfilling.
+
 - Eleven automated tests.
 
 The database is no longer just somewhere pandas sends DataFrames. It now actively protects the integrity of the pipeline.
 
----
+**---**
 
-# 🛠️ What's Next?**
+
+**## v0.5.0 — The Staging Menace**
+
+Version 5 introduces:
+
+- Persistent `staging_orders`.
+- Incremental staging-to-curated loading.
+- Atomic curated-table promotion.
+- Rollback on partial database failure.
+- Retained staging data for retry and debugging.
+- Resumable already-ingested failed batches.
+- Alembic migration `4d17adec9a3e` for the staging schema.
+- **16 automated tests passing.**
+
+A batch can now fail dramatically, recover gracefully, and continue without pretending the raw file was never ingested.
+
+**---**
+
+**# 🛠️ What's Next?****
 
 The pipeline now has modular processing, tests, logging, Dockerized PostgreSQL, historical batch storage, transactional loading, explicit schema enforcement, and versioned database migrations.
 
 Possible future iterations include:
 
-- Incremental loading and a staging layer.
+- PostgreSQL-native integration tests.
 
-- PostgreSQL integration tests.
+- More advanced incremental / change-data strategies.
 
 - Workflow orchestration.
 
@@ -953,9 +1085,9 @@ Or it may discover that Chewbacca has a caffeine problem.
 
 We'll see which happens first.
 
----
+**---**
 
-## Technologies**
+**## Technologies****
 
 - Python
 
@@ -981,6 +1113,6 @@ We'll see which happens first.
 
 - Visual Studio Code
 
----
+**---**
 
-**Built while learning data engineering one questionable CSV at a time.**
+****Built while learning data engineering one questionable CSV at a time.****
